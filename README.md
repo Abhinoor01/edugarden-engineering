@@ -109,7 +109,7 @@ India's DPDP Act restricts behavioural monitoring of minors even with parental c
 
 | Layer | Choice |
 |---|---|
-| Framework | Next.js 14.2 (App Router, edge runtime for most API routes) |
+| Framework | Next.js 14.2 (App Router, mixed edge/node runtimes) |
 | Language | TypeScript 5.5, strict |
 | UI | Tailwind CSS 3.4, Framer Motion 11, Radix primitives, KaTeX |
 | AI | OpenAI — `gpt-4o-mini` for chat, vision and generation; `gpt-4o` for derivations only |

@@ -16,7 +16,7 @@ Browser
 middleware.ts ──────────── route gate. Bounded, fails open.
   │
   ▼
-API route (edge, mostly)
+API route (edge or node)
   │
   ├─► gate        consume_energy / consume_photo / consume_board_exam   (Postgres RPC)
   ├─► cache       content_cache lookup                                  (Postgres)
@@ -36,14 +36,14 @@ Three rules explain most of the layout:
 
 ---
 
-## Edge by default, Node by exception
+## Edge and node, split by need
 
-Most of the 34 route handlers run on the edge runtime. The exceptions are deliberate:
+Of the 34 route handlers, 16 run on the edge runtime and 18 on node. The split is deliberate:
 
 | Runtime | Routes | Why |
 |---|---|---|
-| Edge | chat, revision, derivations, visualise, diagnostic, solutions… | Streaming, low cold-start, close to the user |
-| Node | payments, admin, board-exam, cron, email | Need Node crypto, service-role clients, or long generations |
+| Edge (16) | chat, revision, derivations, visualise, diagnostic, solutions… | Streaming, low cold-start, close to the user |
+| Node (18) | payments, admin, board-exam, cron, email | Need Node crypto, service-role clients, or long generations |
 
 This split has one sharp edge worth naming. The preview-link feature verifies a signed token **in
 middleware**, which is edge — so its crypto had to be Web Crypto, not `node:crypto`, even though an
