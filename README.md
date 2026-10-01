@@ -44,7 +44,7 @@ EduGarden is built around the things a chatbot structurally cannot do: **persist
 | **Tutor** | Streaming SSE chat, Hinglish or English, four teaching specialists (a board-answer examiner, a stress coach, a what-to-skip strategist), photo doubt-solving |
 | **Curriculum** | 70 NCERT chapters across Physics, Chemistry, Mathematics, English and Biology; stream presets so a medical student never sees a Maths chapter |
 | **Assessment** | Free diagnostic, per-chapter tests, full board papers at real paper structure, AI grading, and a predicted score that states its own confidence |
-| **Practice** | ~400 searchable formulas, 150+ chapter diagrams, a PYQ bank, derivation walkthroughs, spaced-retrieval session openers, and a mistake notebook that classifies *why* answers slip |
+| **Practice** | ~400 searchable formulas, 150+ chapter diagrams, a PYQ bank, derivation walkthroughs, graded spaced-revision recall checks, and a mistake notebook that classifies *why* answers slip |
 | **Habit** | XP and levels, badges, streaks with earned freezes, a virtual garden that grows per subject, a Pomodoro timer |
 | **Platform** | Google OAuth, PWA, Razorpay payments, referrals, student-initiated parent reports, an owner analytics dashboard |
 
@@ -116,7 +116,7 @@ India's DPDP Act restricts behavioural monitoring of minors even with parental c
 | Data | Supabase (Postgres, RLS, Google OAuth), localStorage as a synchronous read cache |
 | Payments | Razorpay |
 | Observability | Sentry, PostHog |
-| Testing | Vitest — 555 tests across 43 files |
+| Testing | Vitest — 2,664 tests across 127 files |
 
 **Model choice is deliberate.** `gpt-4o-mini` is ~15× cheaper than `gpt-4o` and indistinguishable for this workload. `gpt-4o` is reserved for derivations, where the smaller model drops algebra terms mid-proof — and a wrong derivation would poison the shared cache for every student for 30 days.
 
@@ -126,11 +126,11 @@ India's DPDP Act restricts behavioural monitoring of minors even with parental c
 
 | | |
 |---|---|
-| ~105,000 | lines of TypeScript |
-| 34 | API route handlers |
-| 41 | SQL migrations |
+| ~157,000 | lines of TypeScript |
+| 39 | API route handlers |
+| 61 | SQL migrations |
 | 70 | curriculum chapters |
-| 555 | unit tests, across 43 files |
+| 2,664 | unit tests, across 127 files |
 
 ---
 
