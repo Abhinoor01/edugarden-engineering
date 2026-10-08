@@ -6,23 +6,32 @@ The trade-offs, in the order they mattered — including the ones that turned ou
 
 ---
 
-## Use the cheap model everywhere, and one expensive one on purpose
+## Pick models on measured cost per turn, and one expensive one on purpose
 
-**Decision:** `gpt-4o-mini` for chat, vision and generation. `gpt-4o` for derivation walkthroughs only.
+**Decision:** GPT-6 Luna for chat, vision and generation; `gpt-4o-mini` as the fallback; `gpt-4o` for
+derivation walkthroughs only.
 
-Roughly 15× cheaper, and for explaining Class 12 Physics in Hinglish the difference is not
-detectable. Derivations are the exception because the smaller model drops algebra terms mid-proof,
-and a derivation is cached platform-wide for 30 days — so one bad generation would teach the same
-wrong step to every student who opens that chapter for a month.
+For most of the product's life the tutor ran on `gpt-4o-mini`, and staying on it was an economics
+call, not an availability one: newer options were priced at 1.5× to 12× per token, and the free tier
+was built on the existing rate. Model choice also turned out to be two-dimensional — model *and*
+reasoning effort. One candidate's time-to-first-token ranged from 0.65 s to 95 s on that setting
+alone, which would be fatal for a streaming tutor.
 
-Paying more for the one output that gets copied into an exam answer is the trade.
+The switch to Luna happened when the arithmetic flipped. On real traffic it costs **$0.00057 per chat
+turn against $0.00115** for `gpt-4o-mini` — about half — with reasoning effort pinned to `none` in one
+place so nobody ships a 95-second tutor by accident. Those are different weeks of traffic, not a
+controlled A/B, and Luna's replies ran shorter; the numbers are quoted with that caveat.
 
-**Staying on an older model is an economics decision, not an availability one.** Newer options were
-priced at 1.5× to 12× per token. The free tier's viability is built on the current rate. Model
-choice here is also two-dimensional in a way that's easy to miss — model *and* reasoning effort. One
-candidate's time-to-first-token ranged from 0.65 s to 95 s depending on that setting alone, which
-would be fatal for a streaming tutor. Migrating without encoding the effort level ships a
-95-second tutor by accident.
+What the switch did **not** come with is a re-run of the teaching-quality evals. Cost and request
+acceptance are measured in production; whether Luna teaches Class 12 Physics as well is not yet
+measured, and the write-up says so rather than implying otherwise. Two production bugs came with the
+switch and are written up in [silent failures](silent-failures.md): blank replies from a leftover tool
+definition, and chapter tests that stopped generating because one long reply ran past its token limit.
+
+Derivations stay on `gpt-4o`, because the smaller model drops algebra terms mid-proof and a derivation
+is cached platform-wide for 30 days — one bad generation would teach the same wrong step to every
+student who opens that chapter for a month. Paying more for the one output that gets copied into an
+exam answer is the trade, and moving it needs its accuracy re-checked first.
 
 ---
 
@@ -130,17 +139,43 @@ might want this someday" — which is exactly what voice turned into.
 **Decision:** cost and prompt-behaviour changes are A/B tested against the live API. Reasoning about
 them is not sufficient.
 
-Three cases where a confident, plausible prediction was simply wrong:
+Five cases where a confident, plausible prediction was simply wrong:
 
 | Expected | Measured |
 |---|---|
 | Moving prompt modules after the history improves cache hits | **8.9 points worse** — tail content can never be cached |
 | The model will report metadata through a tool call | **0% of the time**, across 12+ prompt configurations |
 | Instructing the model to replace its closing question will work | Never complied — four other blocks outvoted it |
+| A new model will ignore an unused side-channel tool, like the old one did | It answered with the tool call **instead of** a reply on 3 of 7 turns |
+| A dedicated prompt block will fix a mis-read numerical ("10 cm *from the focus*") | **0 of 8** correct, twice — fixed only by parsing the givens in a separate call and doing the conversion in TypeScript (0/8 → 10/10) |
 
-All three failed *silently*: types passed, tests passed, the UI looked correct, and the feature was
-dead. That combination is the argument for measuring — a loud failure teaches you something for
+None of them raised an error: types passed, tests passed, the UI looked correct, and the feature
+was dead or quietly wrong. That combination is the argument for measuring — a loud failure teaches you something for
 free, and these don't.
+
+---
+
+## Let only human-reviewed labels become evidence
+
+**Decision:** a wrong answer counts as evidence of a specific misconception only when a person has
+reviewed what that wrong option means.
+
+Generated chapter-test questions now label their wrong options with the documented misconception
+each one embodies ("current gets used up in a resistor"). That makes a wrong answer carry meaning —
+but a model-written label is a guess, and a system that counts guesses as evidence will confidently
+tell a student they hold a belief they don't.
+
+So every generated label is stored as **unreviewed** and produces nothing. A command-line review tool
+promotes labels one at a time, with a named reviewer and a timestamp, and deliberately has no bulk
+"accept all" mode — the moment it gets one, the feature becomes laundered model output with a
+human-shaped wrapper. Most wrong options are expected to stay unlabelled: an arithmetic slip has no
+diagnosable meaning, and labelling it would fabricate evidence.
+
+Two further rules keep the count honest. A misconception is only called *recurring* after it shows up
+on **different** questions — chapter tests are cached for 90 days, so the same question answered wrong
+three times is one piece of evidence, not three. And the tables holding this evidence have **no
+client write policy at all**: a browser cannot author a claim about a student's understanding,
+including its own.
 
 ---
 
