@@ -9,7 +9,8 @@ database without lying to the student.
 
 ## Access-control posture
 
-Roughly 30 tables. Every one falls into one of four buckets, and the bucket is the design decision:
+52 tables, every one with row-level security switched on, governed by 102 policies. Every table falls
+into one of four buckets, and the bucket is the design decision:
 
 | Posture | Used for | Example |
 |---|---|---|
@@ -71,7 +72,7 @@ is refreshed on load so the synchronous engine can read it.
 
 ---
 
-## Two schema bugs worth documenting
+## Three schema bugs worth documenting
 
 ### "Explored" and "complete" were the same field
 
@@ -88,6 +89,17 @@ component used it. The fix was a status column with three states (`explored` / `
 
 Some call sites legitimately want "has opened this" — the recency feed, the is-this-student-new
 heuristic. Those kept the loose metric and carry a comment saying so, so nobody "fixes" them later.
+
+### A partial index took a whole write path down
+
+A uniqueness index meant to make assessment writes idempotent was created with
+`where source_event_id is not null`. Postgres cannot use a *partial* index as the conflict target of an
+upsert unless the statement repeats the predicate — and the client library sends only a column list.
+Every write raised `42P10`, a statement-level error, so whole batches were rejected.
+
+Nothing looked broken: the client kept its local copy, and students saw correct marks on their own
+device. The predicate also bought nothing, since NULLs are already distinct in a unique index. The
+full story, and the real-Postgres test that now guards it: [silent failures](silent-failures.md).
 
 ### A retired table broke every sign-up for nine days
 

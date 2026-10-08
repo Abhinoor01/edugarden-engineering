@@ -44,7 +44,7 @@ EduGarden is built around the things a chatbot structurally cannot do: **persist
 | **Tutor** | Streaming SSE chat, Hinglish or English, four teaching specialists (a board-answer examiner, a stress coach, a what-to-skip strategist), photo doubt-solving |
 | **Curriculum** | 70 NCERT chapters across Physics, Chemistry, Mathematics, English and Biology; stream presets so a medical student never sees a Maths chapter |
 | **Assessment** | Free diagnostic, per-chapter tests, full board papers at real paper structure, AI grading, and a predicted score that states its own confidence |
-| **Practice** | ~400 searchable formulas, 150+ chapter diagrams, a PYQ bank, derivation walkthroughs, spaced-retrieval session openers, and a mistake notebook that classifies *why* answers slip |
+| **Practice** | 391 searchable formulas, 152 chapter diagrams, a 557-question PYQ bank, derivation walkthroughs, graded spaced-revision recall checks, and a mistake notebook that classifies *why* answers slip |
 | **Habit** | XP and levels, badges, streaks with earned freezes, a virtual garden that grows per subject, a Pomodoro timer |
 | **Platform** | Google OAuth, PWA, Razorpay payments, referrals, student-initiated parent reports, an owner analytics dashboard |
 
@@ -93,6 +93,19 @@ Students are still charged energy on a hit. The cache reduces *our* cost, not th
 
 These figures get copied into board answers. A parabola that isn't really y = x² is a wrong answer taught confidently.
 
+### Generated questions are checked by a second, blind call
+
+Chapter tests are generated, and a structural check (four options, one key, a valid index) cannot tell
+whether the keyed answer is *true*. One live batch passed it 7 of 7 while 2 questions had no correct
+option at all. So every generated question is now solved again by a separate call that is **never shown
+the key** — it gets the stem and options, solves, and returns an index or "none of these". Code, not
+the model, compares the two. A disagreement or a timeout rejects the question.
+
+On a live re-run it accepted 6 of 7 and rejected the one it should have: a question whose correct answer was missing from its options. Its ceiling is
+stated in the code: a same-model verifier shares the generator's blind spots.
+
+→ [`docs/silent-failures.md`](docs/silent-failures.md)
+
 ### Deterministic where AI adds nothing
 
 The predicted score, the study planner, the weakness model, and the mistake notebook are pure TypeScript with zero API cost. A weekly plan built by an LLM would be slower, non-reproducible, and no better.
@@ -112,25 +125,59 @@ India's DPDP Act restricts behavioural monitoring of minors even with parental c
 | Framework | Next.js 14.2 (App Router, mixed edge/node runtimes) |
 | Language | TypeScript 5.5, strict |
 | UI | Tailwind CSS 3.4, Framer Motion 11, Radix primitives, KaTeX |
-| AI | OpenAI — `gpt-4o-mini` for chat, vision and generation; `gpt-4o` for derivations only |
+| AI | OpenAI — GPT-6 Luna for chat, vision and generation; `gpt-4o-mini` as a cross-family fallback; `gpt-4o` for derivations only |
 | Data | Supabase (Postgres, RLS, Google OAuth), localStorage as a synchronous read cache |
 | Payments | Razorpay |
 | Observability | Sentry, PostHog |
-| Testing | Vitest — 555 tests across 43 files |
+| Testing | Vitest — 3,019 tests across 152 files; PGlite (real Postgres compiled to WASM) for schema contracts |
 
-**Model choice is deliberate.** `gpt-4o-mini` is ~15× cheaper than `gpt-4o` and indistinguishable for this workload. `gpt-4o` is reserved for derivations, where the smaller model drops algebra terms mid-proof — and a wrong derivation would poison the shared cache for every student for 30 days.
+**Model choice follows measured cost per turn.** The tutor ran on `gpt-4o-mini` until October 2026, then moved to GPT-6 Luna because production logs showed it costs about half as much per chat turn ($0.00057 vs $0.00115). Luna is a reasoning model, so every call goes through one request normaliser with reasoning effort pinned to `none`; if it errors, chat retries once on `gpt-4o-mini`, a different model family. `gpt-4o` stays on derivations only — a wrong line there would poison the shared cache for every student for 30 days. → [`docs/decisions.md`](docs/decisions.md)
 
 ---
 
-## Scale
+## By the numbers
+
+Counted from the source and the production database on 8 October 2026.
+
+**Codebase**
 
 | | |
 |---|---|
-| ~105,000 | lines of TypeScript |
-| 34 | API route handlers |
-| 41 | SQL migrations |
-| 70 | curriculum chapters |
-| 555 | unit tests, across 43 files |
+| ~168,000 | lines of TypeScript — 135k application, 33k tests |
+| 3,019 | unit tests across 152 files |
+| 2,320 | diagram verifier checks, run in CI (1,079 of them re-derive the science) |
+| 39 | API route handlers — 20 edge, 19 Node |
+| 25 · 148 · 233 | pages · React components · library modules |
+| 574 | commits over 102 active days, built solo |
+
+**Database**
+
+| | |
+|---|---|
+| 52 | Postgres tables — every one with row-level security on |
+| 102 | RLS policies |
+| 15 | `SECURITY DEFINER` functions — every write that meters, charges or grants |
+| 71 | migrations applied in production |
+
+**Curriculum**
+
+| | |
+|---|---|
+| 70 | NCERT chapters across five subjects, 466 mapped teaching topics |
+| 391 · 557 · 152 | formulas · previous-year board questions · chapter diagrams |
+| 125 | documented student misconceptions, covering all 37 Physics, Chemistry and Maths chapters |
+
+**Production cost** — from an anonymous usage log with no user ids
+
+| | |
+|---|---|
+| $0.00057 | average cost of one chat turn on GPT-6 Luna (n = 207) |
+| $0.00115 | the same on `gpt-4o-mini` before the switch (n = 186) |
+| ~8,900 | prompt tokens per turn, 53–60% served from the provider's prompt cache |
+| 6.7 s → 511 ms | fresh generation vs a hit on the platform-wide content cache |
+
+The two cost samples are different weeks of real traffic, not a controlled A/B, and Luna's replies ran
+shorter (212 vs 321 output tokens). They are small samples and are quoted with their *n* for that reason.
 
 ---
 
@@ -138,9 +185,20 @@ India's DPDP Act restricts behavioural monitoring of minors even with parental c
 
 Unit tests cover the paths where a bug costs money or breaks trust: payment verification, usage-tier margins, the predicted-score maths, the privacy tracking gate, and cross-file chapter agreement. UI is deliberately not unit-tested — the value is in the invariants.
 
+**The guards are mutation-tested.** Break a guard on purpose and a test has to fail; if none does, the
+test was decorative. One run found a mutant that published *every* rejected question to the shared
+cache and the question bank while all 1,297 tests of the day still passed — the test had checked the
+order of two calls in the source, not what was actually stored. It now drives the real route and
+inspects what reaches the persistence layer.
+
+**Schema contracts run against real Postgres.** A mocked database client checks the shape of a call,
+not whether Postgres will accept it — which is how a bad index silently took down a whole write path
+while 1,502 tests passed. Those tests now apply the real migration SQL to PGlite (Postgres compiled to
+WASM, no server needed) and execute the client's real statement against it.
+
 Beyond unit tests, an **LLM-judged eval harness** runs fixture conversations to catch teaching-behaviour regressions that types can't see. It comes with a hard-won caveat: three runs of an identical build scored 34, 37 and 43 out of 48 at temperature 0.7. It's a smoke alarm for gross breakage, not a referee for small changes — and treating it as the latter produced three wrong diagnoses before that was understood.
 
-CI runs typecheck → lint → test → build on every push to `main`. **The build requires no API credentials** — SDK clients are constructed lazily inside handlers rather than at module scope, so CI never needs a real key.
+CI runs typecheck → lint → test → diagram verification → build on every push to `main`. **The build requires no API credentials** — SDK clients are constructed lazily inside handlers rather than at module scope, so CI never needs a real key.
 
 ---
 
@@ -152,6 +210,7 @@ CI runs typecheck → lint → test → build on every push to `main`. **The bui
 | [Metering & cost](docs/metering-and-cost.md) | Why the meter lives in Postgres, prompt-cache discipline, and measuring cost instead of estimating it |
 | [Data model](docs/data-model.md) | Schema, RLS posture, the `SECURITY DEFINER` pattern, and localStorage-as-cache with reconcile-on-sign-in |
 | [Decisions](docs/decisions.md) | The trade-offs, including the ones that turned out wrong |
+| [Silent failures](docs/silent-failures.md) | Seven bugs that passed every test, how each was found, and the guard that now stops it |
 
 ---
 

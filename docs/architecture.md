@@ -38,12 +38,12 @@ Three rules explain most of the layout:
 
 ## Edge and node, split by need
 
-Of the 34 route handlers, 16 run on the edge runtime and 18 on node. The split is deliberate:
+Of the 39 route handlers, 20 run on the edge runtime and 19 on Node. The split is deliberate:
 
 | Runtime | Routes | Why |
 |---|---|---|
-| Edge (16) | chat, revision, derivations, visualise, diagnostic, solutions… | Streaming, low cold-start, close to the user |
-| Node (18) | payments, admin, board-exam, cron, email | Need Node crypto, service-role clients, or long generations |
+| Edge (20) | chat, revision, derivations, visualise, diagnostic, solutions… | Streaming, low cold-start, close to the user |
+| Node (19) | payments, admin, board-exam, chapter-test pools, cron, email | Need Node crypto, service-role clients, or long generations |
 
 This split has one sharp edge worth naming. The preview-link feature verifies a signed token **in
 middleware**, which is edge — so its crypto had to be Web Crypto, not `node:crypto`, even though an
@@ -152,7 +152,7 @@ would poison every student on that chapter for the full TTL.
 The tutor was designed to report per-turn metadata — explanation style, answer quality, topic,
 whether mastery was demonstrated — through a tool call, so nothing leaks into the student's view.
 
-The model calls that tool **0% of the time.** Not incapable: given a *functional* tool it calls it
+`gpt-4o-mini` called that tool **0% of the time.** Not incapable: given a *functional* tool it calls it
 reliably. It simply drops a pure side-channel tool that doesn't help it answer the student. Forcing
 the call suppresses the visible reply instead.
 
@@ -167,8 +167,30 @@ dead. The fix is a second, tiny extraction call after the stream completes, and 
 - **Bounded at 2.5 s**, so a hung call can't hold a student's stream open. On timeout: no signals
   that turn.
 
-The general lesson: a side-channel that the model gains nothing from is a side-channel it will drop,
-and you will not get an error when it does.
+The tool stayed in the request, unused, as a forward-compatible path. That turned out to be the
+mistake. After the move to GPT-6 Luna, the new model *did* call it — **instead of** replying. On 3 of
+its first 7 production turns the student got an empty bubble and a "send that again" recovery line,
+because the model had answered with nothing but a tool call. The tool is now gone from the request
+entirely, and a test pins its absence.
+
+The general lessons: a side-channel the model gains nothing from is one it will drop, a different
+model may do the opposite, and neither failure raises an error.
+
+---
+
+## One request shape, any model
+
+Reasoning models reject the classic request: `max_tokens` must be `max_completion_tokens`, and any
+non-default `temperature` is a 400. Sent the old way, every call fails — a total outage, and a common
+way apps broke when this generation of models arrived.
+
+So call sites keep one shape and a single normaliser rewrites it for whichever model the call
+targets. It also sets reasoning effort explicitly, because the default ("medium") means seconds of
+silence before the first streamed word and hidden reasoning tokens billed as output on every turn.
+The tutor runs at `none`.
+
+The chat route has one fallback: if the primary errors, it retries once on `gpt-4o-mini`. That is a
+*different* model family on purpose, so a request-shape problem cannot take both down at once.
 
 ---
 

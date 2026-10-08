@@ -14,7 +14,7 @@
   <text x="150" y="438" font-family="Segoe UI, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="34" font-weight="500" fill="#2a1f12">the only question that matters: <tspan font-weight="700" font-style="italic">am I ready?</tspan></text>
 
   <text x="150" y="524" font-family="Segoe UI, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="23" font-weight="600" fill="#7a6a50" letter-spacing="0.4">TypeScript &#183; Next.js &#183; Postgres &#183; OpenAI &#183; Razorpay</text>
-  <text x="150" y="562" font-family="Segoe UI, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="23" font-weight="600" fill="#7a6a50" letter-spacing="0.4">34 API routes &#183; 555 tests &#183; live in production</text>
+  <text x="150" y="562" font-family="Segoe UI, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="23" font-weight="600" fill="#7a6a50" letter-spacing="0.4">39 API routes &#183; 3,019 tests &#183; live in production</text>
 
   <text x="1050" y="562" text-anchor="end" font-family="Segoe UI, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="23" font-weight="700" fill="#d9705c">edugarden.in</text>
 </svg>

@@ -133,6 +133,11 @@ computed cost — read from the provider's own usage frame rather than estimated
 counts. The dashboard reports measured cost when data exists and **says which basis it's using**,
 because presenting an estimate as a measurement is how you end up confidently repricing on fiction.
 
+What it shows today: a chat turn averages about 8,900 prompt tokens and costs **$0.00057** on GPT-6
+Luna (n = 207), against $0.00115 on `gpt-4o-mini` (n = 186) — so the planning assumption the energy
+prices were built on is now conservative by more than half. Those figures are what moved the model
+choice; see [decisions](decisions.md).
+
 Two details that are easy to get backwards:
 
 - **Cached tokens are a subset of prompt tokens, not an addition.** Treating them as additive
