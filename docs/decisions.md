@@ -17,8 +17,9 @@ was built on the existing rate. Model choice also turned out to be two-dimension
 reasoning effort. One candidate's time-to-first-token ranged from 0.65 s to 95 s on that setting
 alone, which would be fatal for a streaming tutor.
 
-The switch to Luna happened when the arithmetic flipped. On real traffic it costs **$0.00057 per chat
-turn against $0.00115** for `gpt-4o-mini` — about half — with reasoning effort pinned to `none` in one
+The switch to Luna, on 3 October 2026, was made on the expectation that it would be cheaper per turn
+at similar quality. Production logs since confirm the cost side: **$0.00057 per chat turn against
+$0.00115** for `gpt-4o-mini` — about half — with reasoning effort pinned to `none` in one
 place so nobody ships a 95-second tutor by accident. Those are different weeks of traffic, not a
 controlled A/B, and Luna's replies ran shorter; the numbers are quoted with that caveat.
 
@@ -49,15 +50,16 @@ Full detail, including the two ways it has silently regressed: [metering & cost]
 
 ## Compute what doesn't need generating
 
-**Decision:** the study planner, the predicted score, the weakness model and the mistake notebook
-are pure TypeScript. Zero API calls.
+**Decision:** the study planner, the predicted score, the weakness scoring and the mistake notebook
+are pure TypeScript. Zero API calls in the logic itself — the per-answer labels they consume (right or
+wrong, and why) come from one small extraction call on answer turns.
 
 An LLM-generated weekly plan would be slower, non-reproducible, unverifiable, and no better than a
 scheduling algorithm — while costing money on every regeneration. Deterministic code can also be
 unit-tested, which matters most for the number a student is trusting.
 
 The corollary is that these functions are *pure*, so they're testable and they can run on the client
-without a round trip. That's what makes the same forecast appear identically on four different
+without a round trip. That's what makes the same forecast appear identically on five different
 screens.
 
 ---
@@ -78,7 +80,9 @@ The rebuild rests on one distinction:
 
 Demonstrated failure pulls a chapter down. Never having opened it does not — it gets *projected* at
 the rate the student has actually demonstrated, and carries uncertainty instead. Same student, after
-the rebuild: **73% ± 7, low confidence.**
+the rebuild: **73% ± 7, low confidence.** A later audit tightened it further — multiple-choice marks are
+now corrected for guessing, and the band won't narrow below ±8 until the student has written
+board-style answers — so today the same three tests read **68% ± 11, low confidence.**
 
 Three guards keep it honest:
 
@@ -90,9 +94,10 @@ Three guards keep it honest:
 - **Nothing is predicted before anything is measured.** With no evidence the gauge shows `—`. A
   neutral prior is a real number to the model and a fabricated claim to a student.
 
-A related rule: the raw ranked list of at-risk chapters is never shown. For a new student it sums to
-roughly 280 of 370 marks "at risk" — true, and useless, because that isn't a leak, it's the course.
-The UI shows only *actionable* leaks: chapters assessed weak, or opened but never tested.
+A related rule: the raw total of marks "at risk" is never the headline. For a brand-new student it
+sums to roughly 280 marks under the old prior and about 157 under the current one — true, and useless,
+because that isn't a leak, it's the course. The figure a student sees is summed only over *actionable*
+leaks: chapters assessed weak, or opened but never tested.
 
 ---
 

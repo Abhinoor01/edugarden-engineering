@@ -62,8 +62,8 @@ A cleared cache costs a student nothing. Two devices converge instead of fightin
 
 ### The rule this creates
 
-**The predicted score is computed synchronously on four separate surfaces** — the home card, the
-tutor practice panel, the pricing page, and the parent report. If any one of them awaited the
+**The predicted-score engine runs synchronously on five separate surfaces** — the home card, the
+tutor's practice tab, the diagnostic, the pricing page, and the parent report. If any one of them awaited the
 network, the same student would see two different numbers on two screens.
 
 So new inputs to that calculation get *mirrored into localStorage*, never fetched at call time.

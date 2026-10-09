@@ -71,7 +71,7 @@ No tier is unlimited. Every paid plan is capped, so even a maxed-out user stays 
 
 ### Payments verify server-side, and only in one place
 
-Both the student and parent checkout flows delegate to a single `finalizePayment()`: HMAC-SHA256 signature check, then the plan **and amount are re-derived from a server-side registry** and required to match exactly. A client only ever sends a coupon *code*, never a price. It's the most security-sensitive path in the codebase, so it's the most heavily unit-tested one.
+All three ways a payment lands — the student checkout, the parent-pays link and the Razorpay webhook — delegate to a single `finalizePayment()`: HMAC-SHA256 signature check, then the plan **and amount are re-derived from a server-side registry** and required to match exactly. A client only ever sends a coupon *code*, never a price. It's the most security-sensitive path in the codebase, so it has its own suite: forged signatures, an order belonging to a different user, an underpaid amount, a full-price mismatch hidden behind a coupon, and replayed verifications.
 
 ### A prompt that's assembled per turn, not shipped whole
 
@@ -108,7 +108,7 @@ stated in the code: a same-model verifier shares the generator's blind spots.
 
 ### Deterministic where AI adds nothing
 
-The predicted score, the study planner, the weakness model, and the mistake notebook are pure TypeScript with zero API cost. A weekly plan built by an LLM would be slower, non-reproducible, and no better.
+The predicted score, the study planner, the weakness scoring and the mistake notebook are pure TypeScript — no API call in the logic itself. (The per-answer labels they consume come from one small extraction call on answer turns.) A weekly plan built by an LLM would be slower, non-reproducible, and no better.
 
 → [`docs/decisions.md`](docs/decisions.md)
 
@@ -129,26 +129,26 @@ India's DPDP Act restricts behavioural monitoring of minors even with parental c
 | Data | Supabase (Postgres, RLS, Google OAuth), localStorage as a synchronous read cache |
 | Payments | Razorpay |
 | Observability | Sentry, PostHog |
-| Testing | Vitest — 3,019 tests across 152 files; PGlite (real Postgres compiled to WASM) for schema contracts |
+| Testing | Vitest — 3,109 tests across 157 files; PGlite (real Postgres compiled to WASM) for schema contracts |
 
-**Model choice follows measured cost per turn.** The tutor ran on `gpt-4o-mini` until October 2026, then moved to GPT-6 Luna because production logs showed it costs about half as much per chat turn ($0.00057 vs $0.00115). Luna is a reasoning model, so every call goes through one request normaliser with reasoning effort pinned to `none`; if it errors, chat retries once on `gpt-4o-mini`, a different model family. `gpt-4o` stays on derivations only — a wrong line there would poison the shared cache for every student for 30 days. → [`docs/decisions.md`](docs/decisions.md)
+**Model choice follows measured cost per turn.** The tutor ran on `gpt-4o-mini` until 3 October 2026, then moved to GPT-6 Luna, which was expected to be cheaper per turn. Production logs since bear that out: about half as much per chat turn ($0.00057 vs $0.00115). Luna is a reasoning model, so every call goes through one request normaliser with reasoning effort pinned to `none`; if it errors, chat retries once on `gpt-4o-mini`, a different model family. `gpt-4o` stays on derivations only — a wrong line there would poison the shared cache for every student for 30 days. → [`docs/decisions.md`](docs/decisions.md)
 
 ---
 
 ## By the numbers
 
-Counted from the source and the production database on 8 October 2026.
+Counted from the source and the production database on 9 October 2026.
 
 **Codebase**
 
 | | |
 |---|---|
-| ~168,000 | lines of TypeScript — 135k application, 33k tests |
-| 3,019 | unit tests across 152 files |
+| ~170,000 | lines of TypeScript — 136k application, 34k tests |
+| 3,109 | unit tests across 157 files |
 | 2,320 | diagram verifier checks, run in CI (1,079 of them re-derive the science) |
 | 39 | API route handlers — 20 edge, 19 Node |
-| 25 · 148 · 233 | pages · React components · library modules |
-| 574 | commits over 102 active days, built solo |
+| 25 · 150 · 237 | pages · React components · library modules |
+| 584 | commits over 103 active days, built solo |
 
 **Database**
 
@@ -157,7 +157,7 @@ Counted from the source and the production database on 8 October 2026.
 | 52 | Postgres tables — every one with row-level security on |
 | 102 | RLS policies |
 | 15 | `SECURITY DEFINER` functions — every write that meters, charges or grants |
-| 71 | migrations applied in production |
+| 72 | migrations applied in production |
 
 **Curriculum**
 
