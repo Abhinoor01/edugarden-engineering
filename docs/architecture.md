@@ -202,7 +202,7 @@ take the union, daily fields stay local — then pushes the merged result back s
 converge.
 
 This is why a cleared cache costs a student nothing, and why the synchronous parts of the UI can
-stay synchronous. The predicted score, for instance, is computed on four different surfaces; if any
+stay synchronous. The predicted score, for instance, is computed on five different surfaces; if any
 one of them awaited the network, the same student would see two different numbers on two screens.
 
 → [Data model](data-model.md) · [Metering & cost](metering-and-cost.md) · [Decisions](decisions.md)
