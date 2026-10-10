@@ -47,6 +47,12 @@ client module, executes the real statement, and separately asserts that the old 
 `42P10`. Also learned: "the migration is applied" (the index exists) is not the same as "the client's
 statement can use it". `EXPLAIN` against the real schema shows the inferred arbiter.
 
+**And it's no longer silent.** The mirror still never throws, but every write to a table that holds a
+student's durable record now checks the error it gets back. A rejection *from the server* (anything
+carrying a Postgres error code) raises one alert per table and code per page load, with no row
+contents attached. A dropped connection carries no code and is only logged, so a flaky phone network
+doesn't page anyone.
+
 ---
 
 ## 2. A cooldown that never cooled down
